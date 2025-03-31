@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Bomb Party</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="game-design.css" />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Comic+Neue:wght@700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="nameEntry">
+      <img src="image/bomba.png" alt="" />
+      <h2>👋 Pangalan mo muna, tara na!</h2>
+      <input id="nameInput" placeholder="I-type ang pangalan mo!" />
+      <button id="joinBtn">Padayon</button>
+    </div>
+
+    <!-- Background Music -->
+    <audio id="bgMusic" loop>
+      <source src="audio/background-music.mp3" type="audio/mpeg" />
+      Your browser does not support the audio tag.
+    </audio>
+
+    <!-- Instruction Modal -->
+    <div id="instructionModal" class="modal">
+      <div class="modal-content">
+        <h2>📚 How to Play Bomb Party</h2>
+        <ul>
+          <li>
+            💣 The goal is to create a valid Tagalog word containing the given
+            substring.
+          </li>
+          <li>
+            ⏳ You have 10 seconds to submit a word before the bomb explodes!
+          </li>
+          <li>
+            ❤️ Each player starts with 3 lives. You lose a life for invalid
+            words or if time runs out.
+          </li>
+          <li>🏆 Be the last player standing to win!</li>
+        </ul>
+        <button id="gotItBtn">Got It! ✅</button>
+      </div>
+    </div>
+
+    <div id="gameMode" style="display:none;">
+      <h2>🎮 Choose your game mode</h2>
+      <button id="singlePlayerBtn">Single Player</button>
+      <button id="multiPlayerBtn">Multiplayer</button>
+    </div>
+
+    <!-- Full Game UI (Initially hidden) -->
+    <div id="gameUI" style="display:none;">
+      <main>
+        <h1>BOMB <span class="bomb-icon">💣</span> PARTY</h1>
+
+        <div class="game-box">
+          <div class="substring-box">
+            <span id="substring">---</span>
+          </div>
+
+          <div id="status"></div>
+          <!-- statusDiv -->
+          <div
+            id="countdownBar"
+            class="countdown-bar"
+            style="display:none;"
+          ></div>
+
+          <div class="input-section">
+            <input type="text" id="wordInput" placeholder="Type a word..." />
+            <button id="submitBtn">Submit</button>
+          </div>
+
+          <div class="player-list" id="playerList"></div>
+          <div class="central-bomb" id="bombDisplay">---</div>
+          <div class="lives-area" id="livesArea"></div>
+          <div id="difficultyLevel">Difficulty: Easy</div>
+          <!-- Rounds Indicator -->
+          <div id="roundIndicator">Round: 1</div>
+
+          <div id="waitingArea" style="display:none;">
+            <h2>⏳ Waiting for players to join...</h2>
+            <p id="playerCount">1/2 players joined</p>
+          </div>
+          <div id="status"></div>
+
+          <div class="word-log">
+            <h3>Words:</h3>
+            <ul id="wordHistory"></ul>
+          </div>
+        </div>
+      </main>
+      <div id="musicControl">
+        <button id="musicBtn" onclick="toggleMusic()">
+          <span id="musicIcon">🔊</span>
+        </button>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
