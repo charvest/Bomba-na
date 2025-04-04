@@ -19,7 +19,8 @@ const gotItBtn = document.getElementById("gotItBtn");
 
 const gameUI = document.getElementById("gameUI");
 const statusDiv = document.getElementById("status");
-const substringDiv = document.getElementById("substring");
+const questionText = document.getElementById("questionText");
+
 const wordInput = document.getElementById("wordInput");
 const submitBtn = document.getElementById("submitBtn");
 const bombTimer = document.getElementById("timerText");
@@ -135,9 +136,9 @@ socket.on("playerList", (serverPlayers) => {
   renderPlayers(players);
 
   const playerCountEl = document.getElementById("playerCount");
-  playerCountEl.innerText = `${players.length}/2 players joined`;
+  playerCountEl.innerText = `${players.length}/4 players joined`;
 
-  if (players.length === 2) {
+  if (players.length === 4) {
     document.getElementById("waitingArea").style.display = "none";
   } else {
     document.getElementById("waitingArea").style.display = "block";
@@ -145,25 +146,15 @@ socket.on("playerList", (serverPlayers) => {
 });
 
 socket.on("roundStart", (data) => {
-  // Hide the waiting UI explicitly here
-  document.getElementById("waitingArea").style.display = "none";
-
   players = data.players;
   isMyTurn = data.playerId === myId;
   timeLeft = data.time || 10;
 
-  substringDiv.innerText = data.substring;
+  questionText.innerText = data.question; // This shows the question
   renderPlayers(players, data.playerId);
 
-  // Show and reset countdown bar clearly at round start
-  const countdown = document.getElementById("countdownBar");
-  countdown.style.display = "block";
-  countdown.classList.remove("countdown-bar");
-  void countdown.offsetWidth; // force reflow
-  countdown.classList.add("countdown-bar");
-
   if (isMyTurn) {
-    statusDiv.innerText = `✅ Your turn! ⏳ You have ${timeLeft} seconds...`;
+    statusDiv.innerText = `✅ Your turn! Type the correct answer!`;
     wordInput.disabled = false;
     submitBtn.disabled = false;
     wordInput.value = "";
@@ -171,7 +162,7 @@ socket.on("roundStart", (data) => {
     pulseBomb(true);
     startCountdown();
   } else {
-    statusDiv.innerText = `⌛ Waiting for ${data.playerName}...`;
+    statusDiv.innerText = `⌛ Waiting for ${data.playerName} to answer...`;
     wordInput.disabled = true;
     submitBtn.disabled = true;
     pulseBomb(false);
@@ -263,33 +254,72 @@ function stopCountdown() {
 }
 
 // === RENDERING ===
-function renderPlayers(playerList, activePlayerId = null) {
-  const playerListDiv = document.getElementById("playerList");
-  const livesArea = document.getElementById("livesArea");
-  playerListDiv.innerHTML = "";
-  livesArea.innerHTML = "";
+function renderPlayers(playerList, activePlayerId) {
+  const slots = ["top", "right", "bottom", "left"];
+  const slotIds = {
+    top: document.getElementById("player-top"),
+    right: document.getElementById("player-right"),
+    bottom: document.getElementById("player-bottom"),
+    left: document.getElementById("player-left"),
+  };
 
-  playerList.forEach((player) => {
-    const playerLine = document.createElement("div");
-    playerLine.innerText =
-      player.name +
-      (player.lastWord ? ` ➤ "${player.lastWord}"` : "") +
-      (player.eliminated ? " ❌" : "");
+  // Clear previous
+  for (const id in slotIds) {
+    slotIds[id].innerHTML = "";
+  }
+
+  playerList.forEach((player, i) => {
+    const slot = slots[i % 4];
+    const slotEl = slotIds[slot];
+
+    const box = document.createElement("div");
+    box.classList.add("player");
+
+    box.innerHTML = `
+      <div class="player-name">${player.name}</div>
+      <div class="player-icon">👤</div>
+      <div class="player-lives">${"❤️".repeat(player.lives)}</div>
+      <div class="player-tag">${
+        player.tag || ""
+      }</div> <!-- optional role or status -->
+    `;
+
     if (player.id === activePlayerId) {
-      playerLine.style.color = "#ffd700";
-      playerLine.style.fontWeight = "bold";
+      box.style.border = "3px solid #00e676";
+      box.style.boxShadow = "0 0 15px #00e676";
     }
-    playerListDiv.appendChild(playerLine);
 
-    const heartDiv = document.createElement("div");
-    heartDiv.classList.add("player-heart");
-    heartDiv.id = "heart-" + player.id;
-    heartDiv.innerHTML = `
-            <div>${player.name}</div>
-            <span>${"❤️".repeat(player.lives)}</span>
-        `;
-    livesArea.appendChild(heartDiv);
+    slotEl.appendChild(box);
+
+    // Update arrow direction if this is the active player
+    const arrowContainer = document.getElementById("turnArrowContainer");
+
+    if (player.id === activePlayerId) {
+      const angleMap = {
+        top: 0, // arrow points down to top player
+        right: 90, // arrow points left
+        bottom: 180, // arrow points up
+        left: 270, // arrow points right
+      };
+
+      arrowContainer.style.transform = `rotate(${angleMap[slot]}deg)`;
+    }
   });
+}
+
+function getArrowForSlot(slot) {
+  switch (slot) {
+    case "top":
+      return "⬇️";
+    case "bottom":
+      return "⬆️";
+    case "left":
+      return "➡️";
+    case "right":
+      return "⬅️";
+    default:
+      return "";
+  }
 }
 
 function popHeart(playerId) {

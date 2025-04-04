@@ -1,3 +1,12 @@
+const fs = require("fs");
+const path = require("path");
+
+// Load quiz questions
+const questions = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "questions.json"))
+);
+let currentQuestionIndex = 0;
+
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
@@ -14,8 +23,10 @@ app.use(express.static("public"));
 let players = [];
 let currentTurn = 0;
 let gameStarted = false;
-let substring = "";
+let substring = '';
 let timer = null;
+let countdownInterval = null; // ✅ Add this!
+
 
 // === Tagalog Word Checker via Wiktionary API ===
 function isValidTagalogWord(word) {
@@ -67,22 +78,23 @@ const generateSubstring = () => {
   return samples[Math.floor(Math.random() * samples.length)];
 };
 
-const startRound = () => {
+function startRound() {
   if (players.length < 2) return;
 
   while (players[currentTurn]?.eliminated) {
     currentTurn = (currentTurn + 1) % players.length;
   }
 
-  substring = generateSubstring(); // Uses your dynamic logic now
   const currentPlayer = players[currentTurn];
 
-  console.log("Generated substring:", substring);
+  // Get next question
+  const questionObj = questions[currentQuestionIndex % questions.length];
+  currentQuestionIndex++;
 
   io.emit("roundStart", {
     playerId: currentPlayer.id,
     playerName: currentPlayer.name,
-    substring,
+    question: questionObj.question,
     time: 10,
     players: players.map((p) => ({
       id: p.id,
@@ -96,7 +108,7 @@ const startRound = () => {
   timer = setTimeout(() => {
     eliminateOrLoseLife(currentPlayer.id);
   }, 10000);
-};
+}
 
 const eliminateOrLoseLife = (playerId) => {
   const player = players.find((p) => p.id === playerId);
@@ -124,7 +136,7 @@ const eliminateOrLoseLife = (playerId) => {
         delete p.lastWord;
       });
 
-      if (players.length >= 2) {
+      if (players.length >= 4) {
         currentTurn = 0;
         gameStarted = true;
         startRound();
@@ -149,7 +161,7 @@ const nextTurn = () => {
 // Player Join
 io.on("connection", (socket) => {
   socket.on("joinGame", (name) => {
-    if (players.length >= 2 || gameStarted) {
+    if (players.length >= 4 || gameStarted) {
       socket.emit("gameFull");
       return;
     }
@@ -158,7 +170,7 @@ io.on("connection", (socket) => {
     io.emit("playerList", players);
 
     // Automatically start pre-game countdown clearly when exactly two players join
-    if (players.length === 2) {
+    if (players.length === 4) {
       io.emit("preGameCountdown", 5); // 5-second countdown
       startPreGameCountdown();
     }
