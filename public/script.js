@@ -1,5 +1,7 @@
 const socket = io();
+let gameStarted = false;
 
+let previousLives = {};
 let myId = "";
 let myName = "";
 let isMyTurn = false;
@@ -84,6 +86,7 @@ function initializeMultiplayer() {
 
   // Explicitly hide countdown bar until the game starts
   document.getElementById("countdownBar").style.display = "none";
+
 }
 
 function initializeMultiplayer() {
@@ -138,19 +141,22 @@ socket.on("playerList", (serverPlayers) => {
   const playerCountEl = document.getElementById("playerCount");
   playerCountEl.innerText = `${players.length}/4 players joined`;
 
-  if (players.length === 4) {
-    document.getElementById("waitingArea").style.display = "none";
+  if (players.length === 4 && !gameStarted) {
+    io.emit("preGameCountdown", 5); // can be adjusted to show countdown before game
+    startPreGameCountdown();
   } else {
     document.getElementById("waitingArea").style.display = "block";
   }
 });
 
 socket.on("roundStart", (data) => {
+  if (data.players.length < 4) return; // ✅ don't start game early
+
   players = data.players;
   isMyTurn = data.playerId === myId;
-  timeLeft = data.time || 10;
+  timeLeft = data.time || 15;
 
-  questionText.innerText = data.question; // This shows the question
+  questionText.innerText = data.question;
   renderPlayers(players, data.playerId);
 
   if (isMyTurn) {
@@ -160,7 +166,7 @@ socket.on("roundStart", (data) => {
     wordInput.value = "";
     wordInput.focus();
     pulseBomb(true);
-    startCountdown();
+    startCountdown(); // ✅ now runs only with valid round
   } else {
     statusDiv.innerText = `⌛ Waiting for ${data.playerName} to answer...`;
     wordInput.disabled = true;
@@ -169,6 +175,7 @@ socket.on("roundStart", (data) => {
     stopCountdown();
   }
 });
+
 
 socket.on("validWord", ({ playerId, word }) => {
   const player = players.find((p) => p.id === playerId);
@@ -215,8 +222,16 @@ socket.on("playerEliminated", (playerName) => {
 });
 
 socket.on("gameOver", (winnerName) => {
-  substringDiv.innerText = "";
-  statusDiv.innerText = `🏆 Game Over! ${winnerName} won!`;
+  gameStarted = true;
+  questionText.innerText = "";
+  statusDiv.innerText = `🏆 Game Over! si ${winnerName} ang nagwagi!`;
+  statusDiv.style.background = "#4caf50";
+  statusDiv.style.color = "#fff";
+  statusDiv.style.padding = "12px 20px";
+  statusDiv.style.borderRadius = "10px";
+  statusDiv.style.fontSize = "1.5em";
+  statusDiv.style.boxShadow = "0 0 20px #66bb6a";
+
   wordInput.disabled = true;
   submitBtn.disabled = true;
   stopCountdown();
@@ -236,22 +251,33 @@ submitBtn.addEventListener("click", () => {
 // === COUNTDOWN ===
 function startCountdown() {
   clearInterval(countdownInterval);
-  bombTimer.innerText = timeLeft;
+
+  const countdownValue = document.getElementById("countdownValue");
+  const countdownBar = document.getElementById("countdownBar");
+
+  if (!countdownBar || !countdownValue) return;
+
+  timeLeft = 15;
+  countdownValue.innerText = timeLeft;
+
+  // Force reflow to restart animation
+  countdownBar.style.display = "block";
+  countdownBar.style.setProperty('--duration', '15s');
+  countdownBar.classList.remove("countdown-bar");
+  void countdownBar.offsetWidth; // trigger reflow
+  countdownBar.classList.add("countdown-bar");
+
   countdownInterval = setInterval(() => {
     timeLeft--;
-    bombTimer.innerText = timeLeft;
+    countdownValue.innerText = timeLeft;
     updateBombGlow();
+
     if (timeLeft <= 0) {
       clearInterval(countdownInterval);
     }
   }, 1000);
 }
 
-function stopCountdown() {
-  clearInterval(countdownInterval);
-  bombTimer.innerText = "--";
-  resetBombGlow();
-}
 
 // === RENDERING ===
 function renderPlayers(playerList, activePlayerId) {
@@ -274,6 +300,21 @@ function renderPlayers(playerList, activePlayerId) {
 
     const box = document.createElement("div");
     box.classList.add("player");
+    const prev = previousLives[player.id] ?? player.lives;
+
+    // Check if player lost a life
+    if (player.lives < prev) {
+      box.classList.add("player-hit");
+
+      // Bomb emoji animation
+      const bomb = document.createElement("div");
+      bomb.classList.add("bomb-pop");
+      bomb.innerText = "💣";
+      box.appendChild(bomb);
+    }
+
+    // Save current lives for next check
+    previousLives[player.id] = player.lives;
 
     box.innerHTML = `
       <div class="player-name">${player.name}</div>
