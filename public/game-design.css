@@ -727,7 +727,7 @@ h1 {
 .countdown-bar {
   position: relative;
   height: 18px;
-  width: 97%;
+  width: 100%;
   max-width: 300px;
   background-color: #ffe0b2;
   border-radius: 20px;
